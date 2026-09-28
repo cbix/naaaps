@@ -1,0 +1,26 @@
+import os
+
+TAG = '1.18.10'
+HASH = 'ab4bcf593f633b1ed16c0eb6aa4525458a00655ef9c87619bf85eaa966f8fd094a8e871b825f679e0d97923f8bbbf11841ff467022390ca2f1a5b5f66ccd5d1b'
+
+URL = 'https://lv2plug.in/'
+DESCRIPTION = 'LV2 specs and headers'
+LICENSE = 'ISC'
+
+port_name = 'lv2'
+
+
+def get(ports, settings, shared):
+    ports.fetch_project(
+        port_name, f'https://lv2plug.in/spec/lv2-{TAG}.tar.xz', sha512hash=HASH)
+
+    root_dir = ports.get_dir(port_name, f'lv2-{TAG}')
+    include_dir = os.path.join(root_dir, 'include', 'lv2')
+    ports.install_header_dir(include_dir)
+    ports.install_headers(os.path.join(include_dir, 'core'), pattern='lv2.h')
+
+    return []
+
+
+def clear(ports, settings, shared):
+    pass
