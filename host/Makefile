@@ -1,7 +1,7 @@
 CFLAGS := -I/usr/include
 
 host.js: host.c
-	emcc $(CFLAGS) -sMAIN_MODULE=2 -sFORCE_FILESYSTEM -sENVIRONMENT=web -sEXPORTED_RUNTIME_METHODS=FS,ccall,stringToUTF8,UTF8ToString -sEXPORTED_FUNCTIONS=_malloc,_free,_get_name -o $@ $<
+	emcc $(CFLAGS) -sMAIN_MODULE=2 -sFORCE_FILESYSTEM -sENVIRONMENT=web -sEXPORTED_RUNTIME_METHODS=FS,ccall,stringToUTF8,UTF8ToString -sEXPORTED_FUNCTIONS=_malloc,_free,_get_name --use-port=../ports/lv2.py -o $@ $<
 
 run: host.html host.js
 	emrun host.html
