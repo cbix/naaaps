@@ -7,20 +7,28 @@ URL = 'https://lv2plug.in/'
 DESCRIPTION = 'LV2 specs and headers'
 LICENSE = 'ISC'
 
-port_name = 'lv2'
-
 
 def get(ports, settings, shared):
     ports.fetch_project(
-        port_name, f'https://lv2plug.in/spec/lv2-{TAG}.tar.xz', sha512hash=HASH)
+        'lv2', f'https://lv2plug.in/spec/lv2-{TAG}.tar.xz', sha512hash=HASH)
 
-    root_dir = ports.get_dir(port_name, f'lv2-{TAG}')
-    include_dir = os.path.join(root_dir, 'include', 'lv2')
-    ports.install_header_dir(include_dir)
-    ports.install_headers(os.path.join(include_dir, 'core'), pattern='lv2.h')
+    def create(final):
+        # includes
+        source_path = ports.get_dir('lv2', f'lv2-{TAG}')
+        include_path = os.path.join(source_path, 'include', 'lv2')
+        ports.install_header_dir(include_path)
+        ports.install_headers(os.path.join(
+            include_path, 'core'), pattern='lv2.h')
 
-    return []
+        # write dummy.c file to output empty .a
+        dummy_file = os.path.join(source_path, 'dummy.c')
+        shared.safe_ensure_dirs(os.path.dirname(dummy_file))
+        ports.write_file(dummy_file, 'void dummy() {}')
+
+        ports.build_port(source_path, final, 'lv2', srcs=['dummy.c'])
+
+    return [shared.cache.get_lib('liblv2.a', create, what='port')]
 
 
 def clear(ports, settings, shared):
-    pass
+    shared.cache.erase_lib('liblv2.a')
