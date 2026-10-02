@@ -19,6 +19,7 @@ def get(ports, settings, shared):
         ports.install_header_dir(include_path)
         ports.install_headers(os.path.join(
             include_path, 'core'), pattern='lv2.h')
+        ports.make_pkg_config('lv2', TAG, '')
 
         # write dummy.c file to output empty .a
         dummy_file = os.path.join(source_path, 'dummy.c')
