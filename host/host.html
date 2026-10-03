@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+  </head>
+  <body>
+    <input type="file" id="libpath" />
+    <ol id="plugins"></ol>
+    <script src="./host.js"></script>
+    <script>
+      const libpath = document.getElementById("libpath");
+      const plugins = document.getElementById("plugins");
+
+      libpath.addEventListener("change", async (ev) => {
+        const inPtr = Module._malloc(200);
+        const outPtr = Module._malloc(200);
+
+        for (const file of ev.target.files) {
+          console.log("reading", file.name);
+          Module.FS.writeFile(
+            file.name,
+            new Uint8Array(await file.arrayBuffer()),
+          );
+          Module.stringToUTF8(file.name, inPtr, 200);
+          Module.ccall("get_name", null, ["number", "number"], [inPtr, outPtr]);
+          const li = document.createElement("li");
+          li.textContent = Module.UTF8ToString(outPtr);
+          plugins.appendChild(li);
+        }
+
+        Module._free(inPtr);
+        Module._free(outPtr);
+      });
+    </script>
+  </body>
+</html>
