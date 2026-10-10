@@ -10,8 +10,9 @@ port.onmessage = async (ev) => {
     const view = new DataView(ev.data.buf);
     console.log("buf value", view.getFloat64(0));
   }
-  if ("memory" in ev.data) {
-    module = await Module({ memory: ev.data.memory });
+  if ("memory" in ev.data && ev.data.memory instanceof WebAssembly.Memory) {
+    console.log("worklet with shared memory");
+    module = await Module({ wasmMemory: ev.data.memory });
   }
 };
 

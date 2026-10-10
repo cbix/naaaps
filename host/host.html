@@ -12,12 +12,14 @@
     <script type="module">
       import Module from "./host.mjs";
 
+      const PAGE = 64 * 1024;
       const memory = new WebAssembly.Memory({
-        initial: 1,
-        maximum: 10000,
-        //shared: true,
+        initial: (64 * 1024 * 1024) / PAGE,
+        maximum: (256 * 1024 * 1024) / PAGE,
+        shared: true,
       });
       const module = await Module({ wasmMemory: memory });
+      window.module = module;
       let node;
       const bundleBtn = document.getElementById("bundle");
       const play = document.getElementById("play");
@@ -37,13 +39,15 @@
           const data = await file.arrayBuffer();
           module.FS.writeFile(file.name, new Uint8Array(data));
 
-          const lib = module.ccall(
+          /*
+          const loadRes = module.ccall(
             "naaaps_lv2_load",
             "number",
             ["string"],
             [file.name],
           );
-          console.log("main lv2 loaded", lib);
+          console.log("main lv2 loaded", loadRes);
+          */
 
           node = new AudioWorkletNode(context, "lv2-processor", {
             processorOptions: {
@@ -69,7 +73,7 @@
               "naaaps_lv2_descriptor",
               "number",
               ["number", "number"],
-              [lib, 0],
+              [ev.data.lib, 0],
             );
             console.log("main desc", desc);
 
