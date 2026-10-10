@@ -12,8 +12,12 @@
     <script type="module">
       import Module from "./host.mjs";
 
-      const memory = new SharedArrayBuffer();
-      const module = await Module({ memory });
+      const memory = new WebAssembly.Memory({
+        initial: 1,
+        maximum: 10000,
+        //shared: true,
+      });
+      const module = await Module({ wasmMemory: memory });
       let node;
       const bundleBtn = document.getElementById("bundle");
       const play = document.getElementById("play");
@@ -30,16 +34,52 @@
       libpath.addEventListener("change", async (ev) => {
         context.audioWorklet.port.postMessage({ msg: "ping change" });
         for (const file of ev.target.files) {
+          const data = await file.arrayBuffer();
+          module.FS.writeFile(file.name, new Uint8Array(data));
+
+          const lib = module.ccall(
+            "naaaps_lv2_load",
+            "number",
+            ["string"],
+            [file.name],
+          );
+          console.log("main lv2 loaded", lib);
+
           node = new AudioWorkletNode(context, "lv2-processor", {
             processorOptions: {
               name: file.name,
-              data: await file.arrayBuffer(),
+              data,
             },
           });
           node.port.onmessage = (ev) => {
+            console.log("node.onmessage", ev.data);
+            console.log("recvd worklet desc", ev.data.desc);
             const li = document.createElement("li");
-            li.textContent = ev.data;
+            li.textContent = ev.data.uri;
             plugins.appendChild(li);
+            const workletUri = module.ccall(
+              "naaaps_lv2_get_uri",
+              "string",
+              ["number"],
+              [ev.data.desc],
+            );
+            console.log("recvd worklet uri", workletUri);
+
+            const desc = module.ccall(
+              "naaaps_lv2_descriptor",
+              "number",
+              ["number", "number"],
+              [lib, 0],
+            );
+            console.log("main desc", desc);
+
+            const mainUri = module.ccall(
+              "naaaps_lv2_get_uri",
+              "string",
+              ["number"],
+              [desc],
+            );
+            console.log("main uri", mainUri);
           };
         }
       });

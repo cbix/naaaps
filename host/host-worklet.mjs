@@ -11,29 +11,45 @@ port.onmessage = async (ev) => {
     console.log("buf value", view.getFloat64(0));
   }
   if ("memory" in ev.data) {
-    module = await Module({ memory });
-    console.log("worklet: wasm instance", module);
+    module = await Module({ memory: ev.data.memory });
   }
 };
 
 class LV2Processor extends AudioWorkletProcessor {
   constructor(options) {
+    if (!module) {
+      throw new Error("Module not initialized");
+    }
+
     super();
     console.log("creating LV2Processor", options);
-    const inPtr = module._malloc(200);
-    const outPtr = module._malloc(200);
     const { ...file } = options.processorOptions;
 
     console.log("reading", file.name);
     module.FS.writeFile(file.name, new Uint8Array(file.data));
-    module.stringToUTF8(file.name, inPtr, 200);
-    module.ccall("get_name", null, ["number", "number"], [inPtr, outPtr]);
-
-    this.uri = module.UTF8ToString(outPtr);
-    this.port.postMessage(this.uri);
-
-    module._free(inPtr);
-    module._free(outPtr);
+    const lib = module.ccall(
+      "naaaps_lv2_load",
+      "number",
+      ["string"],
+      [file.name],
+    );
+    console.log("worklet lv2 loaded", lib);
+    const desc = module.ccall(
+      "naaaps_lv2_descriptor",
+      "number",
+      ["number", "number"],
+      [lib, 0],
+    );
+    const uri = module.ccall(
+      "naaaps_lv2_get_uri",
+      "string",
+      ["number"],
+      [desc],
+    );
+    this.port.postMessage({ lib, desc, uri });
+    this.lib = lib;
+    this.desc = desc;
+    this.uri = uri;
   }
 
   process(inputs, outputs, parameters) {
