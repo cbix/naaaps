@@ -5,18 +5,32 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
   </head>
   <body>
+    <input type="button" id="bundle" value="load bundle" />
     <input type="button" id="play" value="play" />
     <input type="file" id="libpath" />
     <ol id="plugins"></ol>
-    <script>
+    <script type="module">
+      import Module from "./host.mjs";
+
+      const memory = new SharedArrayBuffer();
+      const module = await Module({ memory });
+      let node;
+      const bundleBtn = document.getElementById("bundle");
       const play = document.getElementById("play");
       const libpath = document.getElementById("libpath");
       const plugins = document.getElementById("plugins");
       const context = new AudioContext();
 
+      bundleBtn.addEventListener("click", async () => {
+        const dirHandle = await window.showDirectoryPicker();
+        const manifestHandle = await dirHandle.getFileHandle("manifest.ttl");
+        const manifestFile = await manifestHandle.getFile();
+      });
+
       libpath.addEventListener("change", async (ev) => {
+        context.audioWorklet.port.postMessage({ msg: "ping change" });
         for (const file of ev.target.files) {
-          const node = new AudioWorkletNode(context, "lv2-processor", {
+          node = new AudioWorkletNode(context, "lv2-processor", {
             processorOptions: {
               name: file.name,
               data: await file.arrayBuffer(),
@@ -32,6 +46,13 @@
 
       play.addEventListener("click", async (ev) => {
         await context.audioWorklet.addModule("host-worklet.mjs");
+        const buf = new ArrayBuffer(8);
+        const view = new DataView(buf);
+        view.setFloat64(0, Math.PI);
+        context.audioWorklet.port.postMessage(
+          { msg: "ping play", buf, memory },
+          [buf],
+        );
         context.resume();
       });
     </script>
