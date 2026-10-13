@@ -1,4 +1,4 @@
-import Module from "./host.mjs";
+//import Module from "./host.mjs";
 
 console.log("lv2-processor worklet started");
 
@@ -10,54 +10,55 @@ port.onmessage = async (ev) => {
     const view = new DataView(ev.data.buf);
     console.log("buf value", view.getFloat64(0));
   }
-  if ("memory" in ev.data && ev.data.memory instanceof WebAssembly.Memory) {
-    console.log("worklet with shared memory");
-    module = await Module({ wasmMemory: ev.data.memory });
+  if ("module" in ev.data) {
+    console.log("worklet received module");
+    module = ev.data.module;
   }
-};
-
-class LV2Processor extends AudioWorkletProcessor {
-  constructor(options) {
+  if ("type" in ev.data && ev.data.type === "register-lv2") {
+    // TODO support multiple plugins
+    const { fileName, fileData, uri } = ev.data;
     if (!module) {
       throw new Error("Module not initialized");
     }
-
-    super();
-    console.log("creating LV2Processor", options);
-    const { ...file } = options.processorOptions;
-
-    console.log("reading", file.name);
-    module.FS.writeFile(file.name, new Uint8Array(file.data));
+    module.FS.writeFile(fileName, new Uint8Array(fileData));
     const lib = module.ccall(
       "naaaps_lv2_load",
       "number",
       ["string"],
-      [file.name],
+      [fileName],
     );
     console.log("worklet lv2 loaded", lib);
-    const desc = module.ccall(
-      "naaaps_lv2_descriptor",
-      "number",
-      ["number", "number"],
-      [lib, 0],
-    );
-    const uri = module.ccall(
-      "naaaps_lv2_get_uri",
-      "string",
-      ["number"],
-      [desc],
-    );
-    this.port.postMessage({ lib, desc, uri });
-    this.lib = lib;
-    this.desc = desc;
-    this.uri = uri;
+
+    class LV2Processor extends AudioWorkletProcessor {
+      static lib = lib;
+
+      constructor(options) {
+        super(options);
+        console.log("creating LV2Processor", options);
+        this.desc = module.ccall(
+          "naaaps_lv2_descriptor",
+          "number",
+          ["number", "number"],
+          [this.constructor.lib, 0],
+        );
+        const uri = module.ccall(
+          "naaaps_lv2_get_uri",
+          "string",
+          ["number"],
+          [desc],
+        );
+        this.port.postMessage({ desc, uri });
+        this.desc = desc;
+        this.uri = uri;
+      }
+
+      process(inputs, outputs, parameters) {
+        return true;
+      }
+    }
+
+    registerProcessor(uri, LV2Processor);
+
+    console.log("lv2-processor registered", uri);
   }
-
-  process(inputs, outputs, parameters) {
-    return true;
-  }
-}
-
-registerProcessor("lv2-processor", LV2Processor);
-
-console.log("lv2-processor registered");
+};
