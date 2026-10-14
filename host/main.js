@@ -22,7 +22,6 @@ bundleBtn.addEventListener("click", async () => {
 });
 
 libpath.addEventListener("change", async (ev) => {
-  context.audioWorklet.port.postMessage({ msg: "ping change" });
   for (const file of ev.target.files) {
     const data = await file.arrayBuffer();
     module.FS.writeFile(file.name, new Uint8Array(data));
@@ -35,52 +34,58 @@ libpath.addEventListener("change", async (ev) => {
     );
     console.log("main lv2 loaded", lib);
 
-    node = new AudioWorkletNode(context, "lv2-processor", {
-      processorOptions: {
-        module,
+    context.audioWorklet.port.postMessage(
+      {
+        msg: "load-lv2",
+        fileName: file.name,
+        fileData: data,
         lib,
       },
-    });
-    node.port.onmessage = (ev) => {
-      console.log("node.onmessage", ev.data);
-      console.log("recvd worklet desc", ev.data.desc);
-      const li = document.createElement("li");
-      li.textContent = ev.data.uri;
-      plugins.appendChild(li);
-      const workletUri = module.ccall(
-        "naaaps_lv2_get_uri",
-        "string",
-        ["number"],
-        [ev.data.desc],
-      );
-      console.log("recvd worklet uri", workletUri);
+      [data],
+    );
 
-      const desc = module.ccall(
-        "naaaps_lv2_descriptor",
-        "number",
-        ["number", "number"],
-        [lib, 0],
-      );
-      console.log("main desc", desc);
+    context.audioWorklet.port.onmessage = (ev) => {
+      if (ev.data.msg !== "ready") {
+        return;
+      }
 
-      const mainUri = module.ccall(
-        "naaaps_lv2_get_uri",
-        "string",
-        ["number"],
-        [desc],
-      );
-      console.log("main uri", mainUri);
+      node = new AudioWorkletNode(context, file.name);
+      node.port.onmessage = (ev) => {
+        console.log("node.onmessage", ev.data);
+        console.log("recvd worklet desc", ev.data.desc);
+        const li = document.createElement("li");
+        li.textContent = ev.data.uri;
+        plugins.appendChild(li);
+        const workletUri = module.ccall(
+          "naaaps_lv2_get_uri",
+          "string",
+          ["number"],
+          [ev.data.desc],
+        );
+        console.log("recvd worklet uri", workletUri);
+
+        const desc = module.ccall(
+          "naaaps_lv2_descriptor",
+          "number",
+          ["number", "number"],
+          [lib, 0],
+        );
+        console.log("main desc", desc);
+
+        const mainUri = module.ccall(
+          "naaaps_lv2_get_uri",
+          "string",
+          ["number"],
+          [desc],
+        );
+        console.log("main uri", mainUri);
+      };
     };
   }
 });
 
 play.addEventListener("click", async (ev) => {
   await context.audioWorklet.addModule("host-worklet.mjs");
-  const buf = new ArrayBuffer(8);
-  const view = new DataView(buf);
-  view.setFloat64(0, Math.PI);
-  context.audioWorklet.port.postMessage({ msg: "ping play", buf, module }, [
-    buf,
-  ]);
+  context.audioWorklet.port.postMessage({ msg: "init-lv2", memory });
   context.resume();
 });
