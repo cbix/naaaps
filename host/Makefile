@@ -10,13 +10,14 @@ EMFLAGS := -sMAIN_MODULE=2 \
 					 -sALLOW_MEMORY_GROWTH=1 \
 					 -sENVIRONMENT=web,worklet \
 					 -sMIN_FIREFOX_VERSION=156 \
-					 -sEXPORTED_RUNTIME_METHODS=FS,ccall,stringToUTF8,UTF8ToString,wasmMemory,wasmTable,dumpTable \
-					 -sEXPORTED_FUNCTIONS=_malloc,_free,__dlopen_js \
-					 --use-port=../ports/lv2.py
+					 -sEXPORTED_RUNTIME_METHODS=FS,ccall \
+					 -sEXPORTED_FUNCTIONS=_malloc,_free,__dlopen_js
+					 #--use-port=../ports/lv2.py \
+					 #-sSHARED_MEMORY \
 					 #-sINCOMING_MODULE_JS_API=wasmMemory \
 
 host.mjs: host.c
-	emcc $(CFLAGS) $(EMFLAGS) -o $@ $<
+	emcc $(CFLAGS) $(EMFLAGS) -v -o $@ $<
 
 run: host.html host.mjs
 	emrun host.html
