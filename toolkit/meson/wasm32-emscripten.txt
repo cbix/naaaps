@@ -6,9 +6,6 @@ ranlib = 'emranlib'
 exe_wrapper = 'node'
 pkg-config = 'pkg-config'
 
-[built-in options]
-c_args = ['-I/usr/include']
-
 [host_machine]
 system = 'emscripten'
 cpu_family = 'wasm32'
