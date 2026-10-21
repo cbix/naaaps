@@ -3,11 +3,29 @@ import Module from "./host.mjs";
 console.log("lv2-processor worklet started");
 
 let module;
+// following -sSTACK_OVERFLOW_CHECK=2
+const hasStackCheck = false;
 
 async function initLV2(cfg) {
   console.log("worklet init lv2");
   module = await Module({ wasmMemory: cfg.memory });
-  // TODO configure separate stack, see pthread implementation
+
+  // set up individual stack in shared memory (inspired by emscripten's pthread implementation)
+  const stackSize = module.STACK_SIZE;
+  const stackLow = module._malloc(stackSize);
+  if (!stackLow) {
+    throw new Error("Error allocating stack");
+  }
+  const stackHigh = stackLow + stackSize;
+
+  if (hasStackCheck) {
+    module._emscripten_stack_set_limits(stackHigh, stackLow);
+    module.setStackLimits();
+    module.writeStackCookie();
+  }
+  module.stackRestore(stackHigh);
+
+  console.log("worklet test_stack_var:", module._test_stack_var().toString(16));
   console.log("worklet init lv2 done");
 }
 

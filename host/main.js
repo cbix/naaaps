@@ -15,6 +15,8 @@ const libpath = document.getElementById("libpath");
 const plugins = document.getElementById("plugins");
 const context = new AudioContext();
 
+console.log("main test_stack_var:", module._test_stack_var().toString(16));
+
 bundleBtn.addEventListener("click", async () => {
   const dirHandle = await window.showDirectoryPicker();
   const manifestHandle = await dirHandle.getFileHandle("manifest.ttl");

@@ -16,3 +16,9 @@ const LV2_Descriptor *naaaps_lv2_descriptor(void *lib, uint32_t index) {
 
 EMSCRIPTEN_KEEPALIVE
 const char *naaaps_lv2_get_uri(const LV2_Descriptor *desc) { return desc->URI; }
+
+EMSCRIPTEN_KEEPALIVE
+void *test_stack_var() {
+  int value = 0xDEADBEEF;
+  return &value;
+}
