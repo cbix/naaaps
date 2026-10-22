@@ -1,16 +1,35 @@
 import Module from "./host.mjs";
 
-console.log("lv2-processor worklet started");
+// polyfill https://developer.mozilla.org/en-US/docs/Web/API/AudioWorkletGlobalScope/port
+if (!(globalThis.port instanceof MessagePort)) {
+  globalThis.port = await new Promise((resolve, reject) => {
+    class BootstrapProcessor extends AudioWorkletProcessor {
+      constructor() {
+        super();
+        this.port.onmessage = (ev) => {
+          const [port] = ev.ports;
+          if (port) {
+            this.port.postMessage(true);
+            resolve(port);
+          } else {
+            this.port.postMessage(false);
+            reject(new Error("worklet received no message port"));
+          }
+        };
+      }
+      process() {}
+    }
+    registerProcessor("naaaps-bootstrap", BootstrapProcessor);
+  });
+}
 
 let module;
-// following -sSTACK_OVERFLOW_CHECK=2
-const hasStackCheck = false;
 
 async function initLV2(cfg) {
-  console.log("worklet init lv2");
   module = await Module({ wasmMemory: cfg.memory });
 
   // set up individual stack in shared memory (inspired by emscripten's pthread implementation)
+  const overflowCheck = module.getCompilerSetting("STACK_OVERFLOW_CHECK");
   const stackSize = module.STACK_SIZE;
   const stackLow = module._malloc(stackSize);
   if (!stackLow) {
@@ -18,15 +37,16 @@ async function initLV2(cfg) {
   }
   const stackHigh = stackLow + stackSize;
 
-  if (hasStackCheck) {
-    module._emscripten_stack_set_limits(stackHigh, stackLow);
+  module._emscripten_stack_set_limits(stackHigh, stackLow);
+  if (overflowCheck >= 2) {
     module.setStackLimits();
-    module.writeStackCookie();
   }
   module.stackRestore(stackHigh);
+  if (overflowCheck) {
+    module.writeStackCookie();
+  }
 
   console.log("worklet test_stack_var:", module._test_stack_var().toString(16));
-  console.log("worklet init lv2 done");
 }
 
 async function loadLV2(cfg) {
@@ -80,7 +100,7 @@ const handlers = {
   "load-lv2": loadLV2,
 };
 
-port.onmessage = async (ev) => {
+globalThis.port.onmessage = async (ev) => {
   console.log("worklet port message", ev.data);
   const { msg, ...cfg } = ev.data;
   await handlers[msg]?.(cfg);
