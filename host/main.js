@@ -15,16 +15,15 @@ const libpath = document.getElementById("libpath");
 const plugins = document.getElementById("plugins");
 const context = new AudioContext();
 
-await context.audioWorklet.addModule("host-worklet.mjs");
-
 // polyfill https://developer.mozilla.org/en-US/docs/Web/API/AudioWorklet/port
 if (!(context.audioWorklet.port instanceof MessagePort)) {
-  const chn = new MessageChannel();
+  await context.audioWorklet.addModule("worklet-port-polyfill.mjs");
   context.audioWorklet.port = await Promise.race([
     new Promise((_resolve, reject) =>
       setTimeout(reject, 50, new Error("polyfill timeout")),
     ),
     new Promise((resolve, reject) => {
+      const chn = new MessageChannel();
       const bootstrapNode = new AudioWorkletNode(context, "naaaps-bootstrap");
       bootstrapNode.port.onmessage = (ev) => {
         if (ev.data) {
@@ -38,6 +37,7 @@ if (!(context.audioWorklet.port instanceof MessagePort)) {
   ]);
 }
 
+await context.audioWorklet.addModule("host-worklet.mjs");
 context.audioWorklet.port.postMessage({ msg: "init-lv2", memory });
 
 console.log("main test_stack_var:", module._test_stack_var().toString(16));
@@ -111,6 +111,6 @@ libpath.addEventListener("change", async (ev) => {
   }
 });
 
-play.addEventListener("click", async (ev) => {
+play.addEventListener("click", async () => {
   context.resume();
 });
